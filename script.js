@@ -1,156 +1,126 @@
-const birdImg = new Image();
-birdImg.src = 'Bird.png';
-
-const pipeImg = new Image();
-pipeImg.src = 'Pipe.png';
-
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
 
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
-let birdX = 150;
-let birdY = 200;
-let birdVelocity = 0;
-const gravity = 0.6;
-const jumpStrength = -10;
+const birdImg = new Image();
+birdImg.src = "Bird.png";
+
+const pipeImg = new Image();
+pipeImg.src = "Pipe.png";
+
+const bird = {
+    x: 100,
+    y: canvas.height / 2,
+    width: 40,
+    height: 40,
+    dy: 0,
+    gravity: 0.5,
+    jumpStrength: 10
+};
 
 let pipes = [];
-const pipeWidth = 80;
-const pipeGap = 200;
-const pipeSpeed = 3;
-
 let score = 0;
-let highScore = localStorage.getItem('flappyHighScore') || 0;
-let isGameOver = false;
-let gravityTimer, pipeTimer;
+let highScore = localStorage.getItem("highScore") || 0;
+let gameOver = false;
 
 function drawBird() {
-  ctx.fillStyle = 'yellow';
-  ctx.beginPath();
-  ctx.arc(birdX, birdY, 20, 0, Math.PI * 2);
-  ctx.fill();
+    ctx.drawImage(birdImg, bird.x, bird.y, bird.width, bird.height);
 }
 
-function createPipe() {
-  const topHeight = Math.floor(Math.random() * (canvas.height - pipeGap - 200)) + 50;
-  const bottomY = topHeight + pipeGap;
-  pipes.push({ x: canvas.width, top: topHeight, bottom: bottomY, counted: false });
-}
-
-function drawPipes() {
-  ctx.fillStyle = 'green';
-  for (let pipe of pipes) {
-    ctx.fillRect(pipe.x, 0, pipeWidth, pipe.top);
-    ctx.fillRect(pipe.x, pipe.bottom, pipeWidth, canvas.height - pipe.bottom);
-  }
-}
-
-function movePipes() {
-  for (let pipe of pipes) {
-    pipe.x -= pipeSpeed;
-
-    // Score update
-    if (!pipe.counted && pipe.x + pipeWidth < birdX) {
-      score++;
-      pipe.counted = true;
-    }
-
-    // Collision
-    if (
-      birdX + 20 > pipe.x &&
-      birdX - 20 < pipe.x + pipeWidth &&
-      (birdY - 20 < pipe.top || birdY + 20 > pipe.bottom)
-    ) {
-      gameOver();
-    }
-  }
-
-  pipes = pipes.filter(pipe => pipe.x + pipeWidth > 0);
-}
-
-function applyGravity() {
-  if (!isGameOver) {
-    birdVelocity += gravity;
-    birdY += birdVelocity;
-
-    if (birdY + 20 >= canvas.height || birdY - 20 <= 0) {
-      gameOver();
-    }
-  }
-}
-
-function jump(e) {
-  if (e.code === 'Space') {
-    birdVelocity = jumpStrength;
-  }
+function drawPipe(pipe) {
+    ctx.drawImage(pipeImg, pipe.x, 0, pipe.width, pipe.top);
+    ctx.save();
+    ctx.translate(pipe.x + pipe.width / 2, pipe.top + pipe.gap);
+    ctx.scale(1, -1);
+    ctx.drawImage(pipeImg, -pipe.width / 2, 0, pipe.width, canvas.height);
+    ctx.restore();
 }
 
 function drawScore() {
-  ctx.fillStyle = 'black';
-  ctx.font = '30px Arial';
-  ctx.fillText(`Score: ${score}`, 20, 50);
-  ctx.fillText(`High Score: ${highScore}`, 20, 90);
+    ctx.fillStyle = "white";
+    ctx.font = "30px Arial";
+    ctx.fillText("Score: " + score, 30, 50);
+    ctx.fillText("High Score: " + highScore, 30, 90);
 }
 
-
-function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawBird();
-  drawPipes();
-  drawScore();
-  movePipes();
-
-  if (!isGameOver) {
-    requestAnimationFrame(draw);
-  }
+function resetGame() {
+    bird.y = canvas.height / 2;
+    bird.dy = 0;
+    pipes = [];
+    score = 0;
+    gameOver = false;
 }
 
-function gameOver() {
-  isGameOver = true;
-  clearInterval(pipeTimer);
-  clearInterval(gravityTimer);
-  document.removeEventListener('keydown', jump);
+function update() {
+    if (gameOver) return;
 
-  // Update high score if needed
-  if (score > highScore) {
-    highScore = score;
-    localStorage.setItem('flappyHighScore', highScore);
-  }
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  ctx.font = '48px Arial';
-  ctx.fillStyle = 'black';
-  ctx.fillText('Game Over', canvas.width / 2 - 120, canvas.height / 2);
+    bird.dy += bird.gravity;
+    bird.y += bird.dy;
 
-  setTimeout(() => {
-    restartGame();
-  }, 1500);
+    if (bird.y + bird.height > canvas.height || bird.y < 0) {
+        gameOver = true;
+        return;
+    }
+
+    if (Math.random() < 0.02) {
+        let gap = 200;
+        let top = Math.random() * (canvas.height - gap - 100) + 50;
+        pipes.push({ x: canvas.width, width: 60, top: top, gap: gap, passed: false });
+    }
+
+    for (let i = 0; i < pipes.length; i++) {
+        let pipe = pipes[i];
+        pipe.x -= 4;
+
+        if (
+            bird.x + bird.width > pipe.x &&
+            bird.x < pipe.x + pipe.width &&
+            (bird.y < pipe.top || bird.y + bird.height > pipe.top + pipe.gap)
+        ) {
+            gameOver = true;
+        }
+
+        if (!pipe.passed && pipe.x + pipe.width < bird.x) {
+            score++;
+            pipe.passed = true;
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem("highScore", highScore);
+            }
+        }
+    }
+
+    pipes = pipes.filter(pipe => pipe.x + pipe.width > 0);
+
+    drawBird();
+    pipes.forEach(drawPipe);
+    drawScore();
+
+    requestAnimationFrame(update);
 }
 
+document.addEventListener("keydown", function (e) {
+    if (e.code === "Space") {
+        if (gameOver) {
+            resetGame();
+            update();
+        } else {
+            bird.dy = -bird.jumpStrength;
+        }
+    }
+});
 
-function restartGame() {
-  birdY = 200;
-  birdVelocity = 0;
-  pipes = [];
-  score = 0;
-  isGameOver = false;
-
-  document.addEventListener('keydown', jump);
-  // For mobile/touch screens
 document.addEventListener("touchstart", function () {
-    if (!gameOver) {
+    if (gameOver) {
+        resetGame();
+        update();
+    } else {
         bird.dy = -bird.jumpStrength;
     }
 });
 
-  gravityTimer = setInterval(applyGravity, 20);
-  pipeTimer = setInterval(createPipe, 1500);
-  draw();
-}
-
-// Start
-document.addEventListener('keydown', jump);
-gravityTimer = setInterval(applyGravity, 20);
-pipeTimer = setInterval(createPipe, 1500);
-draw();
+update();
