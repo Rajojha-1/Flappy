@@ -123,4 +123,6 @@ document.addEventListener("touchstart", function () {
     }
 });
 
-update();
+update(); 
+
+
