@@ -137,6 +137,13 @@ function restartGame() {
   isGameOver = false;
 
   document.addEventListener('keydown', jump);
+  // For mobile/touch screens
+document.addEventListener("touchstart", function () {
+    if (!gameOver) {
+        bird.dy = -bird.jumpStrength;
+    }
+});
+
   gravityTimer = setInterval(applyGravity, 20);
   pipeTimer = setInterval(createPipe, 1500);
   draw();
